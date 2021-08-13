@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="ru">
+<head>
+    {% include 'includes/meta.html' %}
+    {% block title %}
+    {% endblock %}
+</head>
+
+{% include 'includes/header.html' %}
+<body>
+<main>
+      <div class="container">
+          {% block index %}
+          {% endblock %}
+          {% block group_list%}
+          {% endblock %}
+      </div>
+ </main>
+</body>
+
+{% include 'includes/footer.html' %}
