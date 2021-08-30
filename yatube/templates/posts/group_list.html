@@ -2,11 +2,8 @@
 {% block title %}
   <title>Записи сообщества {{ group }}</title>
 {% endblock %}
-{% block group_list %}
-<h1>Лев Толстой – зеркало русской революции.</h1>
-<p>
-  Группа тайных поклонников графа.
-</p>
+{% block content %}
+<p> Записи сообщества {{ group.description|linebreaks }} </p>
 {% for post in posts %}
 <article>
     <ul>
@@ -14,11 +11,11 @@
             Автор: {{ post.author.first_name }} {{ post.author.last_name }}
         </li>
         <li>
-            Дата публикации: {{ post.pub_date }}
+            Дата публикации: {{ post.pub_date|date }}
         </li>
     </ul>
     <p>
-        {{post.text}}
+        {{ post.text|linebreaks }}
     </p>
 </article>
 {% if not forloop.last %}
