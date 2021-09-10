@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'posts',
     'users',
     'core',
+    'about',
 ]
 
 LOGIN_URL = 'users:login'
