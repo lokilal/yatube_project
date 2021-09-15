@@ -13,6 +13,4 @@ class SignUp(CreateView):
 
 class PasswordChange(CreateView):
     form_class = PasswordChangeForm
-   # success_url = reverse_lazy('posts:index')
     template_name = 'users/password_change_form.html'
-

@@ -6,17 +6,14 @@
     <title> {% block title %}
         {% endblock %} </title>
 </head>
-
-{% include 'includes/header.html' %}
 <body>
+{% include 'includes/header.html' %}
 <main>
       <div class="container">
-          {% block header %}
-          {% endblock %}
           {% block content %}
           {% endblock %}
       </div>
  </main>
+{% include 'includes/footer.html' %}
 </body>
 
-{% include 'includes/footer.html' %}
