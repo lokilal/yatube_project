@@ -2,6 +2,7 @@
 {% block title %} Профайл пользователя {{ profile.get_full_name }}{% endblock %}
 {% block content %}
 <h1>Все посты пользователя {{ profile.get_full_name }} </h1>
+<h3>Кол-во постов: {{ profile.posts.count }} </h3>
     {% for post in page_obj %}
             <article>
             <ul>

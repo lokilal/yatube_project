@@ -3,6 +3,13 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+
 # C extensions
 *.so
 

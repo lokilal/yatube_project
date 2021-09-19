@@ -25,7 +25,7 @@ SECRET_KEY = '4d!lop&5j*8p9#eq)s9fm)vj1-8rne+3=jqnkszo7b(+c961b*'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'core',
     'about',
 ]
+
 
 LOGIN_URL = 'users:login'
 LOGIN_REDIRECT_URL = 'posts:index'
