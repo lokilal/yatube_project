@@ -38,7 +38,6 @@ def profile(request, username):
     paginator = Paginator(post_list, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    print(profile_author.posts)
     context = {
         'profile': profile_author,
         'page_obj': page_obj
@@ -76,5 +75,5 @@ def post_edit(request, post_id):
     if form.is_valid():
         form.save()
         return redirect('posts:post_detail', post_id)
-    return render(request, "posts/create_post.html",
-                  {"form": form, "post": post, 'is_edit': True})
+    return render(request, 'posts/create_post.html',
+                  {'form': form, 'post': post, 'is_edit': True})

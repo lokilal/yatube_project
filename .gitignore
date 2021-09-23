@@ -8,7 +8,7 @@ htmlcov/
 .coverage.*
 coverage.xml
 *.cover
-
+media/
 
 # C extensions
 *.so
