@@ -1,32 +1,55 @@
 from django.contrib.auth import get_user_model
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 from ..models import Post, Group
 from django import forms
+from django.core.files.uploadedfile import SimpleUploadedFile
+import shutil
+import tempfile
+from django.conf import settings
 
 User = get_user_model()
 
+TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
-class TaskPagesTests(TestCase):
+
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
+class PagesTests(TestCase):
     @classmethod
     def setUpClass(cls):
+        small_gif = (
+            b'\x47\x49\x46\x38\x39\x61\x02\x00'
+            b'\x01\x00\x80\x00\x00\x00\x00\x00'
+            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
+            b'\x0A\x00\x3B'
+        )
+        cls.text = 'Тестовый для третьего задания'
+        cls.slug = 'test'
+        cls.uploaded = SimpleUploadedFile(
+            name='small.gif',
+            content=small_gif,
+            content_type='image/gif'
+        )
         super().setUpClass()
         cls.user = User.objects.create_user(username='admin')
-        for i in range(13):
-            Post.objects.create(
-                author=cls.user,
-                text='Тестовый пост',
-            )
         group = Group.objects.create(
             title='Тестовая группа',
-            slug='test',
+            slug=cls.slug,
             description='Тестовое описание',
         )
-        Post.objects.create(
+        cls.post = Post.objects.create(
             author=cls.user,
-            text='Тестовый для третьего задания',
+            text=cls.text,
             group=group,
+            image=cls.uploaded,
         )
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
         self.guest_client = Client()
@@ -39,7 +62,7 @@ class TaskPagesTests(TestCase):
             'posts/post_detail.html': reverse('posts:post_detail',
                                               kwargs={'post_id': 1}),
             'posts/profile.html': reverse('posts:profile',
-                                          kwargs={'username': self.user}),
+                                          kwargs={'username': self.user.username}),
             'posts/group_list.html': reverse('posts:group_list',
                                              kwargs={'slug': 'test'}),
             'posts/create_post.html': reverse('posts:post_create'),
@@ -50,62 +73,82 @@ class TaskPagesTests(TestCase):
                 self.assertTemplateUsed(response, template)
 
     def test_group_list_context(self):
-        response = self.authorized_client.get(reverse('posts:group_list',
-                                                      kwargs={'slug': 'test'}))
-        self.assertEqual(response.context.get('group').slug, 'test', 'Group_list')
+        resp = self.authorized_client.get(reverse('posts:group_list',
+                                                  kwargs={'slug': 'test'}))
+        self.assertContains(resp, "<img")
+        self.assertEqual(resp.context.get('group').slug, self.slug, 'Group_list')
 
     def test_post_detail_context(self):
         response = self.authorized_client.get(reverse('posts:post_detail',
-                                                      kwargs={'post_id': '1'}))
-
+                                                      kwargs={'post_id': self.post.pk}))
+        self.assertContains(response, "<img")
         self.assertEqual(response.context.get('post').text,
-                         'Тестовый пост', 'Post_detail')
+                         self.text, 'Post_detail')
 
-    def test_create_post_context(self):
+    def chek_context(self, adress):
         form_fields = {
             'text': forms.fields.CharField,
             'group': forms.fields.ChoiceField,
+            'image': forms.fields.ImageField,
         }
-        response = self.authorized_client.get(reverse('posts:post_create'))
+        response = self.authorized_client.get(adress)
         for value, expected in form_fields.items():
             with self.subTest(value=value):
                 form_field = response.context.get('form').fields.get(value)
                 self.assertIsInstance(form_field, expected)
 
-    def test_post_edit_context(self):
-        form_fields = {
-            'text': forms.fields.CharField,
-            'group': forms.fields.ChoiceField,
+    def test_post_create_or_edit_context(self):
+        adress_context = {
+            'create': reverse('posts:post_create'),
+            'edit': reverse('posts:post_edit',
+                            kwargs={'post_id': self.post.pk}),
         }
-        response = self.authorized_client.get(reverse('posts:post_edit',
-                                                      kwargs={'post_id': 1}))
-        for value, expected in form_fields.items():
-            with self.subTest(value=value):
-                form_field = response.context.get('form').fields.get(value)
-                self.assertIsInstance(form_field, expected)
+        for variable, adress in adress_context.items():
+            self.chek_context(adress)
+
+    def test_profile_context(self):
+        response = self.authorized_client.get(reverse('posts:profile',
+                                                      kwargs={'username': 'admin'}))
+        self.assertContains(response, "<img")
 
 
-class PaginatorViewsTest(TaskPagesTests):
-    def test_index_first_paginator(self):
-        response = self.client.get(reverse('posts:index'))
-        self.assertEqual(len(response.context['page_obj']), 10)
+class PaginatorViewsTest(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.user = User.objects.create_user(username='test')
+        group = Group.objects.create(
+            title='Тестовая группа',
+            slug='test',
+            description='Тестовое описание',
+        )
+        for i in range(13):
+            Post.objects.create(
+                author=cls.user,
+                text='Тестовый пост',
+                group=group,
+            )
+        super().setUpClass()
 
-    def test_index_second_paginator(self):
-        response = self.client.get(reverse('posts:index') + '?page=2')
-        self.assertEqual(len(response.context['page_obj']), 4)
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
 
-    def test_profile_first_paginator(self):
-        response = self.client.get(reverse('posts:profile',
-                                           kwargs={'username': self.user}))
-        self.assertEqual(len(response.context['page_obj']), 10)
+    def chek_equal(self, adress):
+        response = self.client.get(adress)
+        return len(response.context['page_obj'])
 
-    def test_profile_second_paginator(self):
-        context = {'username': self.user}
-        response = self.client.get(reverse('posts:profile',
-                                           kwargs=context) + '?page=2')
-        self.assertEqual(len(response.context['page_obj']), 4)
-
-    def test_group_list_second_paginator(self):
-        response = self.client.get(reverse('posts:group_list',
-                                           kwargs={'slug': 'test'}))
-        self.assertEqual(len(response.context['page_obj']), 1)
+    def test_paginator(self):
+        context = {'username': self.user.username}
+        url_names = {
+            reverse('posts:index'): 10,
+            reverse('posts:index') + '?page=2': 3,
+            reverse('posts:profile',
+                    kwargs=context): 10,
+            reverse('posts:profile',
+                    kwargs=context) + '?page=2': 3,
+            reverse('posts:group_list',
+                    kwargs={'slug': 'test'}): 10,
+        }
+        for adress, count in url_names.items():
+            amount = self.chek_equal(adress)
+            self.assertEqual(amount, count)

@@ -18,17 +18,21 @@ class PostModelTest(TestCase):
         )
         cls.post = Post.objects.create(
             author=cls.user,
-            text='Тестовая группа',
+            text='а'*30,
         )
 
     def setUp(self):
         self.guest_client = Client()
 
     def test_models_have_correct_object_names(self):
-        """Проверяем, что у моделей корректно работает __str__."""
-        task_post = PostModelTest.post
-        text_post = task_post.__str__()
-        self.assertEqual(text_post, task_post.text[:15])
+        post = PostModelTest.post
+        text_post = str(post)
+        self.assertEqual(text_post, post.text[:15])
+
+
+class TestGroup(PostModelTest):
+    def test_group(self):
         task_group = PostModelTest.group
-        title_group = task_group.__str__()
+        title_group = task_group.title
         self.assertEqual(title_group, task_group.title)
+

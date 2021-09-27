@@ -1,21 +1,21 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase, Client
-
+from django.urls import reverse
 from ..models import Post, Group
 
 User = get_user_model()
 
 
-class TaskURLTests(TestCase):
+class URLTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         cls.user = User.objects.create_user(username='admin')
-        Post.objects.create(
+        cls.post = Post.objects.create(
             author=cls.user,
-            text='Тестовая группа',
+            text='Тестовый пост',
         )
-        Group.objects.create(
+        cls.group = Group.objects.create(
             title='Тестовая группа',
             slug='test',
             description='Тестовое описание',
@@ -27,14 +27,15 @@ class TaskURLTests(TestCase):
         self.authorized_client.force_login(self.user)
 
     def test_urls_uses_correct_template(self):
-        """URL-адрес использует соответствующий шаблон."""
-        # Шаблоны по адресам
         templates_url_names = {
-            'posts/index.html': '/',
-            'posts/post_detail.html': '/posts/1/',
-            'posts/profile.html': f'/profile/{self.user}/',
-            'posts/group_list.html': '/group/test/',
-            'posts/create_post.html': '/create/',
+            'posts/index.html': reverse('posts:index'),
+            'posts/post_detail.html': reverse('posts:post_detail',
+                                              kwargs={'post_id': self.post.pk}),
+            'posts/profile.html': reverse('posts:profile',
+                                          kwargs={'username': self.user.username}),
+            'posts/group_list.html': reverse('posts:group_list',
+                                             kwargs={'slug': self.group.slug}),
+            'posts/create_post.html': reverse('posts:post_create'),
         }
         for template, adress in templates_url_names.items():
             with self.subTest(adress=adress):
@@ -48,30 +49,20 @@ class TaskURLTests(TestCase):
         }
         for adress, code in access.items():
             with self.subTest(code=code):
-                response = self.guest_client.get(adress)
-                self.assertEqual(response.status_code, code, f'Problem{adress}')
-
-    def access_authorized_client(self):
-        response = self.authorized_client.get('create/')
-        self.assertEqual(response.status_code, 200, 'Проблемы с авторизацией пользователя')
-
-    def change_posts(self):
-        response = self.user.get('posts/1/edit/')
-        self.assertEqual(response.status_code, 200, 'Проблемы с изменением')
+                resp = self.guest_client.get(adress)
+                self.assertEqual(resp.status_code, code, f'Problem{adress}')
 
 
-class StaticURLTests(TestCase):
+class PostEditTest(TestCase):
     def setUp(self):
-        self.guest_client = Client()
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username="TestUser", email="mail@mail.ru", password="kthvjynjd"
+        )
+        self.client.login(username="TestUser", password="kthvjynjd")
+        self.post = Post.objects.create(text=("Test post"), author=self.user)
+        self.new_text = "New Test"
+        self.client.post(f"/{self.user.username}/{self.post.pk}/edit/", {"text": self.new_text})
 
-    def test_homepage(self):
-        response = self.guest_client.get('/')
-        self.assertEqual(response.status_code, 200)
 
-    def test_author(self):
-        response = self.guest_client.get('/about/author/')
-        self.assertEqual(response.status_code, 200)
 
-    def test_tech(self):
-        response = self.guest_client.get('/about/tech/')
-        self.assertEqual(response.status_code, 200)
