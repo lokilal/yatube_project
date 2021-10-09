@@ -1,11 +1,10 @@
 {% extends 'base.html'%}
 {% load thumbnail %}
-{% load cache %}
-{% block title %}Последние обновления на сайте{% endblock %}
+{% block title %}Подписки{% endblock %}
 {% block content %}
-{% cache 20 index_page %}
 {% include 'posts/includes/switcher.html' %}
-  {% for post in page_obj %}
+{% for following in page_obj %}
+  {% for post in following.author.posts.all %}
     <article>
     <ul>
         <li>
@@ -29,7 +28,7 @@
           <hr>
         {% endif %}
   {% endfor %}
-
+    {% endfor %}
   {% include 'posts/includes/paginator.html' %}
-{% endcache %}
+
 {% endblock %}

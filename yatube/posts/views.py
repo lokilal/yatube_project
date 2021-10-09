@@ -1,10 +1,9 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from .models import Post, Group, Comment
+from .models import Post, Group, Comment, Follow
 from django.core.paginator import Paginator
 from .forms import PostForm, CommentForm
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-
 
 User = get_user_model()
 
@@ -33,19 +32,23 @@ def group_posts(request, slug):
     return render(request, 'posts/group_list.html', context)
 
 
-
 def profile(request, username):
     profile_author = get_object_or_404(User, username=username)
+    following = False
     post_list = profile_author.posts.all()
     paginator = Paginator(post_list, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+    for follower in profile_author.following.all():
+        if request.user == follower.user:
+            following = True
+            break
     context = {
         'profile': profile_author,
-        'page_obj': page_obj
+        'page_obj': page_obj,
+        'following': following
     }
     return render(request, 'posts/profile.html', context)
-
 
 
 def post_detail(request, post_id):
@@ -96,3 +99,29 @@ def add_comment(request, post_id):
         comment.post = post
         comment.save()
     return redirect('posts:post_detail', post_id=post_id)
+
+
+@login_required
+def follow_index(request):
+    page_obj = request.user.follower.all()
+    context = {
+        'page_obj': page_obj
+    }
+    return render(request, 'posts/follow.html', context)
+
+
+@login_required
+def profile_follow(request, username):
+    profile_author = get_object_or_404(User, username=username)
+    Follow.objects.create(
+        user=request.user,
+        author=profile_author
+    )
+    return redirect('posts:profile', username=username)
+
+
+@login_required
+def profile_unfollow(request, username):
+    profile_author = get_object_or_404(User, username=username)
+    profile_author.following.get(user=request.user).delete()
+    return redirect('posts:profile', username=username)

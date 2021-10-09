@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase, Client, override_settings
 from django.urls import reverse
-from ..models import Post, Group, Comment
+from ..models import Post, Group, Comment, Follow
 from django import forms
 from django.core.files.uploadedfile import SimpleUploadedFile
 import shutil
@@ -32,6 +32,7 @@ class PagesTests(TestCase):
         )
         super().setUpClass()
         cls.user = User.objects.create_user(username='admin')
+        cls.user_follow = User.objects.create_user(username='lokilal')
         cls.group = Group.objects.create(
             title='Тестовая группа',
             slug='test',
@@ -48,6 +49,10 @@ class PagesTests(TestCase):
             author=cls.user,
             text=cls.text,
         )
+        cls.follow = Follow.objects.create(
+            user=cls.user,
+            author=cls.post.author,
+        )
 
     @classmethod
     def tearDownClass(cls):
@@ -57,7 +62,9 @@ class PagesTests(TestCase):
     def setUp(self):
         self.guest_client = Client()
         self.authorized_client = Client()
+        self.authorized_client_two = Client()
         self.authorized_client.force_login(self.user)
+        self.authorized_client_two.force_login(self.user_follow)
 
     def context_page_test(self, test_post):
         self.assertEqual(test_post.text, self.post.text)
@@ -123,6 +130,31 @@ class PagesTests(TestCase):
         response = self.authorized_client.get(reverse('posts:post_detail',
                                                       kwargs={'post_id': self.post.pk}))
         self.assertEqual(response.context['comments'][0].text, self.text, 'Comment')
+
+    def test_profile_follow(self):
+        response = self.authorized_client.get(reverse('posts:profile_follow',
+                                                      kwargs={
+                                                          'username': self.user.username
+                                                      }))
+        self.assertEqual(response.status_code, 302)
+
+    def test_profile_unfollow(self):
+        response = self.authorized_client.get(reverse('posts:profile_unfollow',
+                                                      kwargs={
+                                                          'username': self.user.username
+                                                      }))
+        self.assertEqual(response.status_code, 302)
+
+    def test_switcher(self):
+        follower = self.authorized_client.get(reverse(
+            'posts:follow_index'
+        ))
+        unfollow = self.authorized_client_two.get(reverse(
+            'posts:follow_index'
+        ))
+        follower_post = len(follower.context['page_obj'])
+        unfollow_post = len(unfollow.context['page_obj'])
+        self.assertNotEqual(follower_post, unfollow_post)
 
 
 class PaginatorViewsTest(TestCase):
