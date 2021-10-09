@@ -25,28 +25,26 @@ class CreateFormTests(TestCase):
             reverse('posts:post_create'),
             data=form_data,
         )
+        post = Post.objects.last()
         context = {'username': self.user.username}
         self.assertRedirects(response, reverse('posts:profile',
                                                kwargs=context))
-        self.assertEqual(Post.objects.count(), count_post+1)
-        self.assertEqual(Post.objects.get(pk=1).text, form_data['text'])
+        self.assertEqual(Post.objects.count(), count_post + 1)
+        self.assertEqual(post.text, form_data['text'])
+        self.assertEqual(post.author, self.user, 'Author')
 
     def test_change_post(self):
-        form_data = {
-            'text': 'Тестовый Пост'
+        form_data_new = {
+            'text': 'Изменили текст'
         }
-        self.authorized_client.post(
-            reverse('posts:post_create'),
-            data=form_data,
+        post = Post.objects.create(
+            author=self.user,
+            text='Тестовый пост',
         )
-        form_data_to_change = {
-            'text': 'Изменил текст'
-        }
         self.authorized_client.post(
-            reverse('posts:post_edit', kwargs={'post_id': 1}),
-            data=form_data_to_change,
+            reverse('posts:post_edit', kwargs={'post_id': post.pk}),
+            data=form_data_new,
         )
-        self.assertTrue(Post.objects.filter(
-            text='Изменил текст',
-        ).exists())
-        self.assertNotEqual(Post.objects.get(pk=1).text, form_data['text'])
+
+        self.assertEqual(Post.objects.last().text,
+                         form_data_new['text'])

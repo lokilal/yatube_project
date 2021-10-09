@@ -29,12 +29,12 @@ class URLTests(TestCase):
     def test_urls_uses_correct_template(self):
         templates_url_names = {
             'posts/index.html': reverse('posts:index'),
-            'posts/post_detail.html': reverse('posts:post_detail',
-                                              kwargs={'post_id': self.post.pk}),
-            'posts/profile.html': reverse('posts:profile',
-                                          kwargs={'username': self.user.username}),
-            'posts/group_list.html': reverse('posts:group_list',
-                                             kwargs={'slug': self.group.slug}),
+            'posts/post_detail.html': reverse(
+                'posts:post_detail', kwargs={'post_id': self.post.pk}),
+            'posts/profile.html': reverse(
+                'posts:profile', kwargs={'username': self.user.username}),
+            'posts/group_list.html': reverse(
+                'posts:group_list', kwargs={'slug': self.group.slug}),
             'posts/create_post.html': reverse('posts:post_create'),
         }
         for template, adress in templates_url_names.items():
@@ -42,27 +42,18 @@ class URLTests(TestCase):
                 response = self.authorized_client.get(adress)
                 self.assertTemplateUsed(response, template)
         access = {
-            '/': 200,
-            '/posts/1/': 200,
-            f'/profile/{self.user}/': 200,
-            '/group/test/': 200,
+            reverse('posts:index'): 200,
+            reverse('posts:post_detail',
+                    kwargs={'post_id': self.post.pk}): 200,
+            reverse('posts:profile',
+                    kwargs={'username': self.user.username}): 200,
+            reverse('posts:group_list',
+                    kwargs={'slug': self.group.slug}): 200,
+            reverse('posts:add_comment',
+                    kwargs={'post_id': self.post.pk}): 302,
         }
+
         for adress, code in access.items():
             with self.subTest(code=code):
                 resp = self.guest_client.get(adress)
-                self.assertEqual(resp.status_code, code, f'Problem{adress}')
-
-
-class PostEditTest(TestCase):
-    def setUp(self):
-        self.client = Client()
-        self.user = User.objects.create_user(
-            username="TestUser", email="mail@mail.ru", password="kthvjynjd"
-        )
-        self.client.login(username="TestUser", password="kthvjynjd")
-        self.post = Post.objects.create(text=("Test post"), author=self.user)
-        self.new_text = "New Test"
-        self.client.post(f"/{self.user.username}/{self.post.pk}/edit/", {"text": self.new_text})
-
-
-
+                self.assertEqual(resp.status_code, code, f'Problem {adress}')

@@ -5,6 +5,7 @@ from .forms import PostForm, CommentForm
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 
+
 User = get_user_model()
 
 
@@ -32,6 +33,7 @@ def group_posts(request, slug):
     return render(request, 'posts/group_list.html', context)
 
 
+
 def profile(request, username):
     profile_author = get_object_or_404(User, username=username)
     post_list = profile_author.posts.all()
@@ -43,6 +45,7 @@ def profile(request, username):
         'page_obj': page_obj
     }
     return render(request, 'posts/profile.html', context)
+
 
 
 def post_detail(request, post_id):
