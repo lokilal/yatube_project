@@ -48,3 +48,18 @@ class CreateFormTests(TestCase):
 
         self.assertEqual(Post.objects.last().text,
                          form_data_new['text'])
+
+    def test_add_comment(self):
+        text_comment = "Test comment"
+        form_comment = {
+            'text': text_comment
+        }
+        post = Post.objects.create(
+            text='Test text',
+            author=self.user
+        )
+        self.authorized_client.post(
+            reverse('posts:add_comment', kwargs={'post_id': post.pk}),
+            data=form_comment
+        )
+        self.assertEqual(post.comments.last().text, text_comment)

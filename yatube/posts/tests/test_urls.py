@@ -51,6 +51,7 @@ class URLTests(TestCase):
                     kwargs={'slug': self.group.slug}): 200,
             reverse('posts:add_comment',
                     kwargs={'post_id': self.post.pk}): 302,
+            reverse('posts:follow_index'): 302
         }
 
         for adress, code in access.items():

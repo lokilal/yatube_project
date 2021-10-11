@@ -53,7 +53,7 @@ def profile(request, username):
 
 def post_detail(request, post_id):
     post = get_object_or_404(Post, id=post_id)
-    comments = Comment.objects.filter(post=post).all()
+    comments = post.comments.filter(post=post).all()
     form = CommentForm()
     context = {
         'post': post,
@@ -103,25 +103,31 @@ def add_comment(request, post_id):
 
 @login_required
 def follow_index(request):
-    page_obj = request.user.follower.all()
+    following = request.user.follower.all()
+    author_list = []
+    for author in following:
+        author_list.append(author.author.id)
+    post_list = Post.objects.filter(author__in=author_list).order_by("-pub_date").all()
+    page_number = request.GET.get("page")
+    paginator = Paginator(post_list, 10)
+    page_obj = paginator.get_page(page_number)
     context = {
         'page_obj': page_obj
     }
-    return render(request, 'posts/follow.html', context)
+    return render(request, "posts/follow.html", context)
 
 
 @login_required
 def profile_follow(request, username):
-    profile_author = get_object_or_404(User, username=username)
-    Follow.objects.create(
-        user=request.user,
-        author=profile_author
-    )
-    return redirect('posts:profile', username=username)
+    author = get_object_or_404(User, username=username)
+    follow_check = Follow.objects.filter(user=request.user.id, author=author.id).exists()
+    if not follow_check and author != request.user:
+        Follow.objects.create(user=request.user, author=author)
+    return redirect("posts:profile", username=username)
 
 
 @login_required
 def profile_unfollow(request, username):
     profile_author = get_object_or_404(User, username=username)
-    profile_author.following.get(user=request.user).delete()
+    profile_author.following.filter(user=request.user).delete()
     return redirect('posts:profile', username=username)

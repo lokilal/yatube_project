@@ -11,20 +11,21 @@ from django.conf import settings
 User = get_user_model()
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
+small_gif = (
+    b'\x47\x49\x46\x38\x39\x61\x02\x00'
+    b'\x01\x00\x80\x00\x00\x00\x00\x00'
+    b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+    b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+    b'\x02\x00\x01\x00\x00\x02\x02\x0C'
+    b'\x0A\x00\x3B'
+)
+
 
 @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PagesTests(TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.text = 'Тестовый для третьего задания'
-        small_gif = (
-            b'\x47\x49\x46\x38\x39\x61\x02\x00'
-            b'\x01\x00\x80\x00\x00\x00\x00\x00'
-            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
-            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
-            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
-            b'\x0A\x00\x3B'
-        )
+        cls.text = 'Тестовый текст'
         cls.uploaded = SimpleUploadedFile(
             name='small.gif',
             content=small_gif,
@@ -62,15 +63,13 @@ class PagesTests(TestCase):
     def setUp(self):
         self.guest_client = Client()
         self.authorized_client = Client()
-        self.authorized_client_two = Client()
         self.authorized_client.force_login(self.user)
-        self.authorized_client_two.force_login(self.user_follow)
 
     def context_page_test(self, test_post):
         self.assertEqual(test_post.text, self.post.text)
         self.assertEqual(test_post.author, self.post.author)
         self.assertEqual(test_post.group.id, self.group.id)
-        self.assertEqual(test_post.image.size, self.uploaded.size)
+        self.assertEqual(test_post.image, self.post.image)
 
     def test_pages_uses_correct_template(self):
         post_id = self.post.pk
@@ -99,6 +98,8 @@ class PagesTests(TestCase):
         response = self.authorized_client.get(
             reverse('posts:post_detail', kwargs={'post_id': self.post.pk}))
         self.context_page_test(response.context['post'])
+        self.assertEqual(response.context['comments'][0].text,
+                         self.text, 'Comment')
 
     def test_post_create_or_edit_context(self):
         adress_context = [reverse('posts:post_create'),
@@ -126,44 +127,45 @@ class PagesTests(TestCase):
         response = self.authorized_client.get(reverse('posts:index'))
         self.context_page_test(response.context['page_obj'][0])
 
-    def test_comment(self):
-        response = self.authorized_client.get(reverse('posts:post_detail',
-                                                      kwargs={'post_id': self.post.pk}))
-        self.assertEqual(response.context['comments'][0].text, self.text, 'Comment')
-
     def test_profile_follow(self):
-        response = self.authorized_client.get(reverse('posts:profile_follow',
-                                                      kwargs={
-                                                          'username': self.user.username
-                                                      }))
-        self.assertEqual(response.status_code, 302)
+        response = self.authorized_client.get(
+            reverse('posts:profile_follow',
+                    kwargs={
+                        'username': self.user.username
+                    }))
+        self.assertEqual(self.user.follower.count(), Follow.objects.count())
 
     def test_profile_unfollow(self):
-        response = self.authorized_client.get(reverse('posts:profile_unfollow',
-                                                      kwargs={
-                                                          'username': self.user.username
-                                                      }))
-        self.assertEqual(response.status_code, 302)
+        response = self.authorized_client.get(
+            reverse('posts:profile_unfollow',
+                    kwargs={
+                        'username': self.user.username
+                    }))
+        self.assertEqual(self.user.follower.count(), Follow.objects.count())
 
-    def test_switcher(self):
+    def test_switcher_page_contains_post(self):
         follower = self.authorized_client.get(reverse(
             'posts:follow_index'
         ))
-        unfollow = self.authorized_client_two.get(reverse(
+        self.assertEqual(follower.context['page_obj'][0], self.post)
+
+    def test_switcher_for_unfollower(self):
+        unfollower = self.guest_client.get(reverse(
+            'posts:follow_index'))
+        follower = self.authorized_client.get(reverse(
             'posts:follow_index'
         ))
-        follower_post = len(follower.context['page_obj'])
-        unfollow_post = len(unfollow.context['page_obj'])
-        self.assertNotEqual(follower_post, unfollow_post)
+        self.assertNotEqual(unfollower, follower)
 
 
 class PaginatorViewsTest(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.user = User.objects.create_user(username='test')
+        cls.slug = 'test'
         group = Group.objects.create(
             title='Тестовая группа',
-            slug='test',
+            slug=cls.slug,
             description='Тестовое описание',
         )
         for i in range(13):
@@ -188,7 +190,9 @@ class PaginatorViewsTest(TestCase):
             reverse('posts:profile',
                     kwargs=context) + '?page=2': 3,
             reverse('posts:group_list',
-                    kwargs={'slug': 'test'}): 10,
+                    kwargs={'slug': self.slug}): 10,
+            reverse('posts:group_list',
+                    kwargs={'slug': self.slug}) + '?page=2': 3,
         }
         for adress, count in url_names.items():
             response = self.client.get(adress)
